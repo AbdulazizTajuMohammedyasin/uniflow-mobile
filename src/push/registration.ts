@@ -75,6 +75,20 @@ export async function fetchPushToken(deps: PushDeps): Promise<TokenResult> {
   }
 }
 
+/**
+ * Tells real token rotations apart from repeats. The first token seen is the one the app
+ * is already fetching an address for, so it doesn't count; after that, only a token that
+ * differs from the last one does.
+ */
+export function tokenChangeFilter(): (token: string) => boolean {
+  let last: string | undefined
+  return (token) => {
+    const changed = last !== undefined && token !== last
+    last = token
+    return changed
+  }
+}
+
 // --- When to offer notifications ------------------------------------------------------------
 
 export type OfferRecord = { offers: number; lastOfferAt: number }

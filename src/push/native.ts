@@ -1,10 +1,11 @@
 import * as Device from 'expo-device'
 import * as Notifications from 'expo-notifications'
+import { Platform } from 'react-native'
 
 import { EAS_PROJECT_ID, IS_EXPO_GO } from '../config'
 import { ensureChannels } from './channels'
 import { pathFromPushData } from './payload'
-import type { PushDeps } from './registration'
+import { tokenChangeFilter, type PushDeps } from './registration'
 
 /** The real phone, for the rules in registration.ts. */
 export const nativePushDeps: PushDeps = {
@@ -61,7 +62,30 @@ export function onNotificationTap(open: (path: string) => void) {
   return () => subscription.remove()
 }
 
+/**
+ * Keeps the app icon in step with the website's unread alerts.
+ * - iOS: the icon shows exactly that number.
+ * - Android: there is no standard way to set a number (launchers count, or dot, the
+ *   notifications in the shade), and expo-notifications' setBadgeCountAsync(0) removes all
+ *   of the app's notifications. So nothing is set while there are unread alerts; once there
+ *   are none (all read, or logged out) UniFlow's notifications leave the shade, and with
+ *   them the icon's number or dot.
+ */
+export function syncAppBadge(unread: number) {
+  if (Platform.OS === 'ios') {
+    void Notifications.setBadgeCountAsync(unread).catch(() => undefined)
+  } else if (unread === 0) {
+    void Notifications.dismissAllNotificationsAsync().catch(() => undefined)
+  }
+}
+
+/** Calls `listener` when the system gives this phone a new push token. Android also reports
+ * the current token every time the app asks for its address, so only a different token
+ * counts; otherwise asking again would report again, endlessly. */
 export function onPushTokenChange(listener: () => void) {
-  const subscription = Notifications.addPushTokenListener(listener)
+  const changed = tokenChangeFilter()
+  const subscription = Notifications.addPushTokenListener((token) => {
+    if (changed(String(token.data))) listener()
+  })
   return () => subscription.remove()
 }

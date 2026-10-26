@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AppState } from 'react-native'
 
 import { nativePushDeps, onPushTokenChange } from './native'
@@ -32,7 +32,7 @@ export function usePush({ signedIn, deps = nativePushDeps }: { signedIn: boolean
   // "A week since the last offer" is judged from when the app was opened.
   const [openedAt] = useState(Date.now)
 
-  const refresh = useCallback(async () => {
+  const refreshOnce = useCallback(async () => {
     try {
       const current = await readPushStatus(deps)
       setStatus(current)
@@ -48,9 +48,27 @@ export function usePush({ signedIn, deps = nativePushDeps }: { signedIn: boolean
     }
   }, [deps])
 
+  // One refresh at a time: asks that arrive meanwhile (the app coming back, a new token)
+  // become one more run afterwards, never parallel requests to the push service.
+  const running = useRef<Promise<void> | null>(null)
+  const again = useRef(false)
+  const refresh = useCallback(() => {
+    if (running.current) {
+      again.current = true
+      return running.current
+    }
+    running.current = (async () => {
+      do {
+        again.current = false
+        await refreshOnce()
+      } while (again.current)
+    })().finally(() => {
+      running.current = null
+    })
+    return running.current
+  }, [refreshOnce])
+
   useEffect(() => {
-    // refresh() only sets state after awaiting the native module, never synchronously.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh()
     AsyncStorage.getItem(OFFER_KEY)
       .then((raw) => setRecord(parseOfferRecord(raw)))

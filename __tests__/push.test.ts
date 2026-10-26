@@ -8,6 +8,7 @@ import {
   requestPushPermission,
   shouldOffer,
   statusFrom,
+  tokenChangeFilter,
   type PermissionResponse,
   type PushDeps,
 } from '../src/push/registration'
@@ -118,6 +119,17 @@ describe('fetchPushToken', () => {
       }),
     })
     expect(await fetchPushToken(d)).toEqual({ ok: false, reason: 'failed' })
+  })
+})
+
+describe('tokenChangeFilter', () => {
+  it('ignores the first token and repeats, and reports a real rotation once', () => {
+    const changed = tokenChangeFilter()
+    expect(changed('device-a')).toBe(false) // the one being fetched right now
+    expect(changed('device-a')).toBe(false) // Android reporting it again
+    expect(changed('device-a')).toBe(false)
+    expect(changed('device-b')).toBe(true) // rotated
+    expect(changed('device-b')).toBe(false)
   })
 })
 
