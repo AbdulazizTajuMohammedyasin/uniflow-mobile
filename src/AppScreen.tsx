@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { LoadingOverlay } from './components/LoadingOverlay'
 import { PushOffer } from './components/PushOffer'
+import { syncAppBadge } from './push/native'
 import { usePush } from './push/usePush'
 import { paletteFor } from './theme'
 import { useIncomingLinks } from './useIncomingLinks'
@@ -63,6 +64,7 @@ export function AppScreen({ webOrigin }: { webOrigin: string }) {
 
   const onMessage = useCallback((message: PageMessage) => {    if (message.type === 'theme') setPageDark(message.dark)
     else if (message.type === 'layout') setLayout(message)
+    else if (message.type === 'unread') syncAppBadge(message.count)
     else if (message.type === 'session') setPageSignedIn(message.signedIn)
     // 'push-registration' needs nothing from the app: the website keeps the server in step.
   }, [])

@@ -19,11 +19,13 @@ const MAX_MESSAGE_BYTES = 1024
 export type PageMessage =
   | { type: 'theme'; dark: boolean }
   | { type: 'layout'; bottomBar: boolean; insetBottom: number }
+  | { type: 'unread'; count: number }
   | { type: 'session'; signedIn: boolean }
   | { type: 'push-registration'; status: 'registered' | 'unregistered' | 'failed' }
 
 const REGISTRATION_STATUSES = new Set(['registered', 'unregistered', 'failed'])
 const MAX_INSET = 500 // CSS pixels; no phone's system bar comes close
+const MAX_UNREAD = 9999
 
 /** A message from the page, or null if it isn't one UniFlow's website may send. */
 export function parsePageMessage(data: unknown, fromUrl: string, webOrigin: string): PageMessage | null {
@@ -54,6 +56,15 @@ export function parsePageMessage(data: unknown, fromUrl: string, webOrigin: stri
   ) {
     return { type, bottomBar: fields.bottomBar, insetBottom: fields.insetBottom as number }
   }
+  if (
+    type === 'unread' &&
+    keys.length === 1 &&
+    Number.isInteger(fields.count) &&
+    (fields.count as number) >= 0 &&
+    (fields.count as number) <= MAX_UNREAD
+  ) {
+    return { type, count: fields.count as number }
+  }
   if (type === 'session' && keys.length === 1 && typeof fields.signedIn === 'boolean') {
     return { type, signedIn: fields.signedIn }
   }
@@ -78,8 +89,10 @@ const js = (value: unknown) => JSON.stringify(value)
 
 /**
  * Runs before the website's own scripts on every page load. It tells the website it is
- * inside the app (window.UniFlowApp) and reports two things about the page, so the app's
- * frame matches it:
+ * inside the app (window.UniFlowApp) and reports three things about the page:
+ * - the number of unread alerts, read from the website's own badge (its accessible label,
+ *   "3 unread"), so the app icon can follow it (see syncAppBadge); 0 on the login page,
+ *   and nothing on pages that don't show the badge;
  * - light or dark (also when the student picks a theme on the website): the status bar
  *   and edges follow it;
  * - whether the page has its own bar along the bottom (the student pages' navigation), and
@@ -132,18 +145,43 @@ export function bootstrapScript(webOrigin: string, info: { platform: string; app
     return false;
   }
   function reportLayout() {
-    layoutPending = false;
-    if (!document.body) return;
     var layout = { type: 'layout', bottomBar: hasBottomBar(), insetBottom: insetBottom() };
     var key = layout.bottomBar + ':' + layout.insetBottom;
     if (key === lastLayout) return;
     lastLayout = key;
     post(layout);
   }
+
+  var lastUnread = null;
+  function unreadCount() {
+    if (/^\\/login(\\/|$)/.test(window.location.pathname)) return 0; // logged out: no badge
+    // Only the student pages show the count; elsewhere it is unknown, not zero.
+    if (!document.querySelector('a[href="/notifications"]')) return null;
+    var count = 0;
+    var badges = document.querySelectorAll('[aria-label$=" unread"]');
+    for (var i = 0; i < badges.length; i++) {
+      var match = /^(\\d+) unread$/.exec(badges[i].getAttribute('aria-label') || '');
+      if (match) count = Math.max(count, Number(match[1]));
+    }
+    return Math.min(count, ${MAX_UNREAD});
+  }
+  function reportUnread() {
+    var count = unreadCount();
+    if (count === null || count === lastUnread) return;
+    lastUnread = count;
+    post({ type: 'unread', count: count });
+  }
+
+  function report() {
+    layoutPending = false;
+    if (!document.body) return;
+    reportLayout();
+    reportUnread();
+  }
   function scheduleLayout() {
     if (layoutPending) return;
     layoutPending = true;
-    window.requestAnimationFrame(reportLayout);
+    window.requestAnimationFrame(report);
   }
 
   if (document.documentElement) {
@@ -155,14 +193,22 @@ export function bootstrapScript(webOrigin: string, info: { platform: string; app
     value: function () {
       lastDark = null;
       lastLayout = null;
+      lastUnread = null;
       reportTheme();
       scheduleLayout();
     },
   });
   function start() {
     reportTheme();
-    // Page changes inside the website (React) replace parts of the page: check again then.
-    new MutationObserver(scheduleLayout).observe(document.body, { childList: true, subtree: true });
+    // Page changes inside the website (React) replace parts of the page, and a new unread
+    // count only edits the badge's text and label: check again on any of these.
+    new MutationObserver(scheduleLayout).observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ['aria-label'],
+    });
     window.addEventListener('resize', scheduleLayout);
     scheduleLayout();
   }

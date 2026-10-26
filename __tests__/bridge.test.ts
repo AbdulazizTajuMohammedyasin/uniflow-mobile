@@ -27,6 +27,20 @@ describe('parsePageMessage', () => {
     }
   })
 
+  it('accepts the unread count, a whole number within reason', () => {
+    expect(parsePageMessage(message({ v: 1, type: 'unread', count: 3 }), page, webOrigin)).toEqual({
+      type: 'unread',
+      count: 3,
+    })
+    expect(parsePageMessage(message({ v: 1, type: 'unread', count: 0 }), page, webOrigin)).toEqual({
+      type: 'unread',
+      count: 0,
+    })
+    for (const count of [-1, 1.5, '3', 100000, null]) {
+      expect(parsePageMessage(message({ v: 1, type: 'unread', count }), page, webOrigin)).toBeNull()
+    }
+  })
+
   it('accepts the three messages the website may send', () => {
     expect(parsePageMessage(message({ v: 1, type: 'theme', dark: true }), page, webOrigin)).toEqual({
       type: 'theme',
