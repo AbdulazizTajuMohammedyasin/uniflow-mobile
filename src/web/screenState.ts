@@ -57,6 +57,19 @@ export function classifyHttpError(statusCode: number): LoadErrorKind | null {
   return statusCode >= 500 ? 'server' : null
 }
 
+export type PageLayout = { bottomBar: boolean; insetBottom: number }
+export type Edge = 'top' | 'right' | 'bottom' | 'left'
+
+/**
+ * Which phone edges the app keeps clear around the website. The bottom is left to the page
+ * when it has its own bottom bar that already makes room for the system bar (it sees a
+ * non-zero inset); otherwise the same space would appear twice, a gap under the bar.
+ */
+export function safeAreaEdges(layout: PageLayout | null): Edge[] {
+  const pageOwnsBottom = layout !== null && layout.bottomBar && layout.insetBottom > 0
+  return pageOwnsBottom ? ['top', 'left', 'right'] : ['top', 'right', 'bottom', 'left']
+}
+
 /** Android Back: go back in the website if possible, otherwise let the system leave the app.
  * Returns true when the app handled it. */
 export function handleBack(canGoBack: boolean, goBack: () => void): boolean {

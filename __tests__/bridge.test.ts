@@ -1,5 +1,6 @@
 import {
   bootstrapScript,
+  frameRefreshScript,
   isExpoPushToken,
   navigateScript,
   parsePageMessage,
@@ -11,6 +12,21 @@ const page = `${webOrigin}/timetable`
 const message = (value: unknown) => JSON.stringify(value)
 
 describe('parsePageMessage', () => {
+  it('accepts the page layout the app reports from inside the page', () => {
+    expect(
+      parsePageMessage(message({ v: 1, type: 'layout', bottomBar: true, insetBottom: 24 }), page, webOrigin),
+    ).toEqual({ type: 'layout', bottomBar: true, insetBottom: 24 })
+    for (const bad of [
+      { v: 1, type: 'layout', bottomBar: 'yes', insetBottom: 24 },
+      { v: 1, type: 'layout', bottomBar: true, insetBottom: -1 },
+      { v: 1, type: 'layout', bottomBar: true, insetBottom: 2.5 },
+      { v: 1, type: 'layout', bottomBar: true, insetBottom: 9999 },
+      { v: 1, type: 'layout', bottomBar: true },
+    ]) {
+      expect(parsePageMessage(message(bad), page, webOrigin)).toBeNull()
+    }
+  })
+
   it('accepts the three messages the website may send', () => {
     expect(parsePageMessage(message({ v: 1, type: 'theme', dark: true }), page, webOrigin)).toEqual({
       type: 'theme',
@@ -85,6 +101,7 @@ describe('injected scripts', () => {
       bootstrapScript(webOrigin, { platform: 'ios', appVersion: '1.0.0' }),
       pushTokenScript(webOrigin, 'ExponentPushToken[abc]', 'ios'),
       navigateScript(webOrigin, '/'),
+      frameRefreshScript(webOrigin),
     ]) {
       expect(() => new Function(script)).not.toThrow()
     }

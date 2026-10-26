@@ -8,7 +8,14 @@ import { ErrorScreen } from '../components/ErrorScreen'
 import { LoadingOverlay } from '../components/LoadingOverlay'
 import { APP_VERSION, USER_AGENT_SUFFIX } from '../config'
 import type { Palette } from '../theme'
-import { bootstrapScript, navigateScript, parsePageMessage, pushTokenScript, type PageMessage } from './bridge'
+import {
+  bootstrapScript,
+  frameRefreshScript,
+  navigateScript,
+  parsePageMessage,
+  pushTokenScript,
+  type PageMessage,
+} from './bridge'
 import { decideNavigation } from './navigationPolicy'
 import { classifyHttpError, classifyLoadError, handleBack, initialScreenState, screenReducer } from './screenState'
 import { pathOnOrigin } from './url'
@@ -18,6 +25,8 @@ export type UniFlowWebViewHandle = {
   navigate(path: string): void
   /** Hand the page the phone's push address (or null). */
   sendPushToken(token: string | null): void
+  /** Ask the page to report its theme and layout again. */
+  refreshFrame(): void
 }
 
 type Props = {
@@ -40,7 +49,15 @@ async function openOutside(url: string) {
   }
 }
 
-export function UniFlowWebView({ ref, webOrigin, initialPath, palette, onPathChange, onPageLoad, onMessage }: Props) {
+export function UniFlowWebView({
+  ref,
+  webOrigin,
+  initialPath,
+  palette,
+  onPathChange,
+  onPageLoad,
+  onMessage,
+}: Props) {
   // WebView<object>: the library's default (WebView<undefined>) makes every prop type `never`.
   const webView = useRef<WebView<object>>(null)
   const [screen, dispatch] = useReducer(screenReducer, initialScreenState)
@@ -66,6 +83,9 @@ export function UniFlowWebView({ ref, webOrigin, initialPath, palette, onPathCha
       },
       sendPushToken(token) {
         webView.current?.injectJavaScript(pushTokenScript(webOrigin, token, Platform.OS))
+      },
+      refreshFrame() {
+        webView.current?.injectJavaScript(frameRefreshScript(webOrigin))
       },
     }),
     [screen.phase, webOrigin],

@@ -3,6 +3,7 @@ import {
   classifyLoadError,
   handleBack,
   initialScreenState,
+  safeAreaEdges,
   screenReducer,
 } from '../src/web/screenState'
 
@@ -47,6 +48,21 @@ describe('classifyHttpError', () => {
     expect(classifyHttpError(500)).toBe('server')
     expect(classifyHttpError(404)).toBeNull()
     expect(classifyHttpError(401)).toBeNull()
+  })
+})
+
+describe('safeAreaEdges', () => {
+  it('keeps every edge clear until the page reports its layout, and on pages without a bottom bar', () => {
+    expect(safeAreaEdges(null)).toContain('bottom')
+    expect(safeAreaEdges({ bottomBar: false, insetBottom: 24 })).toContain('bottom')
+  })
+
+  it('leaves the bottom to a page whose own bar already makes room for the system bar', () => {
+    expect(safeAreaEdges({ bottomBar: true, insetBottom: 24 })).toEqual(['top', 'left', 'right'])
+  })
+
+  it('keeps the bottom when the page sees no inset (its bar would sit on the system bar)', () => {
+    expect(safeAreaEdges({ bottomBar: true, insetBottom: 0 })).toContain('bottom')
   })
 })
 

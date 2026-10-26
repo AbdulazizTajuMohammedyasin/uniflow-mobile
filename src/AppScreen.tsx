@@ -10,6 +10,7 @@ import { paletteFor } from './theme'
 import { useIncomingLinks } from './useIncomingLinks'
 import type { PageMessage } from './web/bridge'
 import { looksSignedIn } from './web/routes'
+import { safeAreaEdges, type PageLayout } from './web/screenState'
 import { UniFlowWebView, type UniFlowWebViewHandle } from './web/UniFlowWebView'
 
 /** The whole app: the UniFlow website, framed by the phone's safe areas, plus the native
@@ -22,6 +23,7 @@ export function AppScreen({ webOrigin }: { webOrigin: string }) {
   const systemDark = useColorScheme() === 'dark'
   const [pageDark, setPageDark] = useState<boolean | null>(null) // the website's own choice
   const palette = paletteFor(pageDark ?? systemDark)
+  const [layout, setLayout] = useState<PageLayout | null>(null)
 
   const [path, setPath] = useState<string | null>(null)
   const [pageReady, setPageReady] = useState(false)
@@ -49,14 +51,18 @@ export function AppScreen({ webOrigin }: { webOrigin: string }) {
     if (pageReady) sendToken(push.token)
   }, [pageReady, push.token, sendToken])
 
-  const onPageLoad = useCallback(() => {
-    sentToken.current = undefined // a new page knows nothing yet
+  const onPageLoad = useCallback(() => {    sentToken.current = undefined // a new page knows nothing yet
+    // Every UniFlow page reports its layout itself as soon as it is ready (pages without a
+    // bottom bar report that too), so the newest report always describes the page showing.
+    // No reset here: on Back, Android can signal "loaded" after the page already reported,
+    // and a reset would wipe that out. Asking once more covers a report that got lost.
+    webView.current?.refreshFrame()
     setPageReady(true)
     sendToken(push.token)
   }, [push.token, sendToken])
 
-  const onMessage = useCallback((message: PageMessage) => {
-    if (message.type === 'theme') setPageDark(message.dark)
+  const onMessage = useCallback((message: PageMessage) => {    if (message.type === 'theme') setPageDark(message.dark)
+    else if (message.type === 'layout') setLayout(message)
     else if (message.type === 'session') setPageSignedIn(message.signedIn)
     // 'push-registration' needs nothing from the app: the website keeps the server in step.
   }, [])
@@ -65,7 +71,7 @@ export function AppScreen({ webOrigin }: { webOrigin: string }) {
   const initialPath = launchPath === null ? null : (queuedPath ?? launchPath)
 
   return (
-    <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: palette.background }}>
+    <SafeAreaView edges={safeAreaEdges(layout)} style={{ flex: 1, backgroundColor: palette.background }}>
       <StatusBar style={pageDark ?? systemDark ? 'light' : 'dark'} />
       {initialPath === null ? (
         <LoadingOverlay palette={palette} />
