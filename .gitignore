@@ -54,3 +54,23 @@ service-account*.json
 
 # test output
 coverage/
+
+# AI assistant files (kept local, never committed)
+.claude/
+CLAUDE.md
+AGENTS.md
+
+# Firebase config for Android push: given to EAS as a file variable (docs/setup.md)
+google-services.json
+GoogleService-Info.plist
+
+# Credentials that must never be committed
+*.keystore
+credentials.json
+service-account*.json
+.env
+.env.*
+!.env.example
+
+# test output
+coverage/
