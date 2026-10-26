@@ -10,12 +10,14 @@ import type { ConfigContext, ExpoConfig } from 'expo/config'
  * - APP_VARIANT=development   development builds (`eas build --profile development`); only
  *                             these may point at a plain-HTTP website on a laptop
  * - UNIFLOW_WEB_ORIGIN        the website, default https://uni-flow-inky.vercel.app
- * - EAS_PROJECT_ID            set once with `eas init` (see docs/setup.md)
  * - GOOGLE_SERVICES_JSON      path to google-services.json (an EAS file variable on EAS)
  */
 
 const DEFAULT_WEB_ORIGIN = 'https://uni-flow-inky.vercel.app'
 const APP_ID = 'io.github.abcd001100.uniflow' // permanent: the stores identify the app by it
+// The project on expo.dev (`eas init`); push addresses belong to it. Public, not a secret.
+const EAS_OWNER = 'abdulaziztaju'
+const EAS_PROJECT_ID = 'f09b68d0-c097-4768-8834-5b99eedefaf3'
 
 const PAPER = '#f5f5eb'
 const NIGHT = '#121210'
@@ -27,13 +29,13 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   if (!webOrigin.startsWith('https://') && !isDevelopment) {
     throw new Error('UNIFLOW_WEB_ORIGIN must use https:// outside development builds.')
   }
-  const projectId = process.env.EAS_PROJECT_ID
   const googleServicesFile = process.env.GOOGLE_SERVICES_JSON ?? './google-services.json'
 
   return {
     ...config,
     name: 'UniFlow',
     slug: 'uniflow',
+    owner: EAS_OWNER,
     scheme: 'uniflow',
     version: '1.0.0',
     orientation: 'portrait',
@@ -86,7 +88,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ],
     extra: {
       webOrigin,
-      ...(projectId ? { eas: { projectId } } : {}),
+      eas: { projectId: EAS_PROJECT_ID },
     },
   }
 }
