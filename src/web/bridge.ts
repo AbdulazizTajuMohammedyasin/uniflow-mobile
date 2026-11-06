@@ -184,9 +184,14 @@ export function bootstrapScript(webOrigin: string, info: { platform: string; app
     window.requestAnimationFrame(report);
   }
 
-  if (document.documentElement) {
+  // Android can run this script before <html> exists, so start() tries again.
+  var watchingTheme = false;
+  function watchTheme() {
+    if (watchingTheme || !document.documentElement) return;
+    watchingTheme = true;
     new MutationObserver(reportTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
   }
+  watchTheme();
   // The app asks again after every page load (see frameRefreshScript), in case a report got
   // lost: the answer is sent even if nothing changed here.
   Object.defineProperty(app, 'reportFrame', {
@@ -199,6 +204,7 @@ export function bootstrapScript(webOrigin: string, info: { platform: string; app
     },
   });
   function start() {
+    watchTheme();
     reportTheme();
     // Page changes inside the website (React) replace parts of the page, and a new unread
     // count only edits the badge's text and label: check again on any of these.
