@@ -292,8 +292,8 @@ Plus two small things:
 
 | Setting | Where | Notes |
 |---|---|---|
-| `EXPO_ACCESS_TOKEN` | Render environment (**secret**) | expo.dev → Account settings → Access tokens → create a robot or personal token. Read with `env_str("EXPO_ACCESS_TOKEN", "")`; when empty, the push job logs once and skips (development without push) |
-| Enhanced push security | expo.dev → project `uniflow` → Settings → Push notifications | Turn on **after** the backend sends with the token. Then a leaked push address alone can't be used to send anything |
+| `EXPO_ACCESS_TOKEN` | Render environment (**secret**) | A robot user's token (expo.dev → Account settings → Access tokens), role Developer. Read with `env_str("EXPO_ACCESS_TOKEN", "")`; when empty, the push job logs once and skips (development without push) |
+| Enhanced push security | expo.dev → project `uniflow` → Settings → Push notifications | **On.** Expo rejects any send without the access token, so a leaked push address alone can't be used to send anything |
 | Firebase (Android) | done | `google-services.json` is an EAS file variable; the FCM key is uploaded to Expo |
 | Apple (iPhone) | needs a paid Apple Developer account | EAS creates the push key during the first iOS build |
 
@@ -304,9 +304,8 @@ Order:
 2. Website: the registration module and Profile switches. Deploy. Phones start registering
    (visible in the Django admin under Notifications → Devices).
 3. Set `EXPO_ACCESS_TOKEN` on Render → pushes start for new alerts.
-4. Turn on enhanced push security in Expo.
-5. Check with a real phone: publish a test insight to your own section (or use a
-   `system` broadcast to yourself) and watch Inngest → Runs → `push-notifications`.
+4. Check with a real phone: publish a test insight to a test section (or a `system`
+   broadcast to a test account) and watch Inngest → Runs → `push-notifications`.
 
 ## 7. Tests
 
